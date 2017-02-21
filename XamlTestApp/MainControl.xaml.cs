@@ -1,4 +1,5 @@
-﻿namespace XamlTestApp
+﻿//#define USE_OBJECTS
+namespace XamlTestApp
 {
   using SimpleUwpTwoWayComms;
   using System;
@@ -8,6 +9,15 @@
   using Windows.UI;
   using Windows.UI.Xaml.Controls;
 
+#if USE_OBJECTS
+  public class ColourMessage : MessageBase
+  {
+    public byte Red { get; set; }
+    public byte Green { get; set; }
+    public byte Blue { get; set; }
+  }
+#endif
+
   public sealed partial class MainControl : UserControl, INotifyPropertyChanged
   {
     public event PropertyChangedEventHandler PropertyChanged;
@@ -15,8 +25,7 @@
     public MainControl()
     {
       this.InitializeComponent();
-      this.BackgroundColour = Colors.White;
-      this.IsConnected = false;
+      this.Disconnect();
     }
     public Color BackgroundColour
     {
@@ -72,6 +81,11 @@
         await this.pipe.ReadAndDispatchMessageLoopAsync(this.MessageHandler);
       }
     }
+    void Disconnect()
+    {
+      this.IsConnected = false;
+      this.BackgroundColour = Colors.White;
+    }
     public async void OnRed()
     {
       await this.OnColourAsync(Colors.Red);
@@ -86,17 +100,39 @@
     }
     async Task OnColourAsync(Color colour)
     {
+#if USE_OBJECTS
+      ColourMessage message = new ColourMessage()
+      {
+        Red = colour.R,
+        Green = colour.G,
+        Blue = colour.B
+      };
+      await this.pipe.SendObjectAsync(message);
+#else
       await this.pipe.SendBytesAsync(
         new byte[] { colour.R, colour.G, colour.B });
+#endif
     }
     void MessageHandler(MessageType messageType, object messageBody)
     {
+#if USE_OBJECTS
+      if (messageType == MessageType.SerializedObject)
+      {
+        var msg = messageBody as ColourMessage;
+
+        if (msg != null)
+        {
+          this.BackgroundColour = Color.FromArgb(0xFF, msg.Red, msg.Green, msg.Blue);
+        }
+      }
+#else
       // We just handle byte arrays here.
       if (messageType == MessageType.Buffer)
       {
         var bits = (byte[])messageBody;
         this.BackgroundColour = Color.FromArgb(0xFF, bits[0], bits[1], bits[2]);
       }
+#endif
     }
     void FirePropertyChanged([CallerMemberName] string propertyName = null)
     {

@@ -1,7 +1,7 @@
 ﻿namespace SimpleUwpTwoWayComms
 {
+  using Newtonsoft.Json;
   using System;
-  using System.Collections.Generic;
   using System.Runtime.InteropServices;
   using System.Runtime.InteropServices.WindowsRuntime;
   using System.Runtime.Serialization;
@@ -10,7 +10,6 @@
   using Windows.Networking;
   using Windows.Networking.Sockets;
   using Windows.Storage.Streams;
-  using System.IO;
   using MessageTypePair = System.Tuple<MessageType, object>;
 
   public enum MessageType : byte
@@ -19,8 +18,7 @@
     String,
     SerializedObject
   }
-  [DataContract(Namespace = "messagebase")]
-  public abstract class MessageBase
+  public class MessageBase
   {
   }
   public class AutoConnectMessagePipe
@@ -124,6 +122,11 @@
       await this.socket.InputStream.ReadAsync(bits.AsBuffer(),
         (uint)bits.Length, InputStreamOptions.None);
 
+      if (BitConverter.IsLittleEndian)
+      {
+        Array.Reverse(bits);
+      }
+
       int size = BitConverter.ToInt32(bits, 0);
 
       bits = new byte[size + 1];
@@ -144,9 +147,8 @@
           returnValue = UTF8Encoding.UTF8.GetString(bits, 0, bits.Length - 1);
           break;
         case MessageType.SerializedObject:
-          this.MakeSerializer();
-          var memoryStream = new MemoryStream(bits, 0, bits.Length - 1);
-          returnValue = this.serializer.ReadObject(memoryStream);
+          var strObject = UTF8Encoding.UTF8.GetString(bits, 0, bits.Length - 1);
+          returnValue = JsonConvert.DeserializeObject<MessageBase>(strObject, jsonSettings);
           break;
         default:
           break;
@@ -155,8 +157,12 @@
     }
     public async Task SendStringAsync(string data)
     {
+      await this.SendStringAsync(MessageType.String, data);
+    }
+    async Task SendStringAsync(MessageType messageType, string data)
+    {
       var bits = UTF8Encoding.UTF8.GetBytes(data);
-      await this.SendBytesAsync(MessageType.String, bits);
+      await this.SendBytesAsync(messageType, bits);
     }
     public async Task SendBytesAsync(byte[] bits)
     {
@@ -164,15 +170,8 @@
     }
     public async Task SendObjectAsync(MessageBase data)
     {
-      this.MakeSerializer();
-
-      // hopefully, this will be for small objects as I've not made it very efficient.
-      var memoryStream = new InMemoryRandomAccessStream();
-
-      this.serializer.WriteObject(memoryStream.AsStreamForWrite(), data);
-      memoryStream.Seek(0);
-
-      await this.SendStreamAsync(MessageType.SerializedObject, memoryStream);
+      var serialized = JsonConvert.SerializeObject(data, jsonSettings);
+      await this.SendStringAsync(MessageType.SerializedObject, serialized);
     }
     public async Task SendStreamAsync(MessageType messageType, InMemoryRandomAccessStream bits)
     {
@@ -185,22 +184,6 @@
         }
       );
       bits.Dispose();
-    }
-    void MakeSerializer()
-    {
-      if (this.serializer == null)
-      {
-        this.serializer = new DataContractSerializer(
-          typeof(MessageBase), this.knownTypes);
-      }
-    }
-    public void AddKnownMessageType<T>() where T : MessageBase
-    {
-      if (this.knownTypes == null)
-      {
-        this.knownTypes = new List<Type>();
-      }
-      this.knownTypes.Add(typeof(T));
     }
     public void Close()
     {
@@ -250,6 +233,11 @@
         throw new InvalidOperationException("Socket not connected");
       }
       var data = BitConverter.GetBytes(length);
+
+      if (BitConverter.IsLittleEndian)
+      {
+        Array.Reverse(data);
+      }
       await this.socket.OutputStream.WriteAsync(data.AsBuffer());
 
       await writeBitsAsync();
@@ -259,8 +247,11 @@
 
       await this.socket.OutputStream.FlushAsync();
     }
-    List<Type> knownTypes;
-    DataContractSerializer serializer;
+    static JsonSerializerSettings jsonSettings = new JsonSerializerSettings()
+    {
+      TypeNameHandling = TypeNameHandling.All
+    };
+
     bool advertise;
     StreamSocket socket;
     BluetoothLEStreamSocketAdvertisement advertisement;
