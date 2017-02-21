@@ -1,0 +1,105 @@
+﻿<UserControl
+    x:Class="XamlTestApp.MainControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:XamlTestApp"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    d:DesignHeight="300"
+    d:DesignWidth="400">
+    <UserControl.Resources>
+        <local:InverseVisibilityConverter
+            x:Name="negate" />
+    </UserControl.Resources>
+    <Grid>
+        <Grid.Resources>
+            <Style
+                TargetType="Rectangle">
+                <Setter
+                    Property="Width"
+                    Value="24" />
+                <Setter
+                    Property="Height"
+                    Value="24" />
+                <Setter
+                    Property="Stroke"
+                    Value="Black" />
+            </Style>
+            <Style
+                TargetType="Button">
+                <Setter
+                    Property="Margin"
+                    Value="2" />
+                <Setter
+                    Property="BorderBrush"
+                    Value="Black" />
+                <Setter
+                    Property="BorderThickness"
+                    Value="1" />
+                <Setter
+                    Property="HorizontalAlignment"
+                    Value="Center" />
+            </Style>
+        </Grid.Resources>
+        <Grid.Background>
+            <SolidColorBrush
+                Color="{x:Bind BackgroundColour,Mode=OneWay,FallbackValue=White}" />
+        </Grid.Background>
+        <Viewbox
+            Margin="96">
+            <StackPanel
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+                <StackPanel
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Visibility="{x:Bind Path=IsConnected, Mode=OneWay,Converter ={StaticResource ResourceKey=negate}}">
+                    <StackPanel Margin="8">
+                        <Button
+                            Content="&#xE88A;"
+                            FontFamily="Segoe MDL2 Assets"
+                            Click="{x:Bind OnAdvertise}"/>
+                        <TextBlock
+                            Text="advertise"
+                            TextAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Margin="8">
+                        <Button
+                            Content="&#xED5C;"
+                            FontFamily="Segoe MDL2 Assets"
+                            Click="{x:Bind OnConnect}" />
+                        <TextBlock
+                            Text="connect"
+                            TextAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel
+                    Orientation="Horizontal"
+                    Visibility="{x:Bind IsConnected,Mode=OneWay}"
+                    Margin="0,8,0,0"
+                    HorizontalAlignment="Center">
+                    <Button
+                        Template="{x:Null}"
+                        Click="{x:Bind OnRed}">
+                        <Rectangle
+                            Fill="Red" />
+                    </Button>
+                    <Button
+                        Template="{x:Null}"
+                        Click="{x:Bind OnGreen}">
+                        <Rectangle
+                            Fill="Green" />
+                    </Button>
+                    <Button
+                        Template="{x:Null}"
+                        Click="{x:Bind OnBlue}">
+                        <Rectangle
+                            Fill="Blue" />
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Viewbox>
+    </Grid>
+</UserControl>
