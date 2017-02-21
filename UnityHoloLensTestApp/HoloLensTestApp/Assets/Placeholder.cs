@@ -71,21 +71,26 @@ public class Placeholder : MonoBehaviour
     if (this.pipe == null)
     {
       this.pipe = new AutoConnectMessagePipe(advertise);
-
-      await this.pipe.WaitForConnectionAsync(TimeSpan.FromMilliseconds(-1));
-
-      if (pipe.IsConnected)
-      {
-        this.Dispatch(
-          () =>
-          {
-            this.panelConnection.SetActive(false);
-            this.panelColours.SetActive(true);
-          }
-        );
-        await this.pipe.ReadAndDispatchMessageLoopAsync(this.MessageHandler);
-      }
     }
+
+    await this.pipe.WaitForConnectionAsync(TimeSpan.FromMilliseconds(-1));
+
+    if (pipe.IsConnected)
+    {
+      this.TogglePanels(false);
+      await this.pipe.ReadAndDispatchMessageLoopAsync(this.MessageHandler);
+      this.TogglePanels(true);
+    }
+  }
+  void TogglePanels(bool connectionPanel)
+  {
+    this.Dispatch(
+      () =>
+      {
+        this.panelConnection.SetActive(connectionPanel);
+        this.panelColours.SetActive(!connectionPanel);
+      }
+    );
   }
   void MessageHandler(MessageType messageType, object messageBody)
   {
